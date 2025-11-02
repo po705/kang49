@@ -1,0 +1,77 @@
+--// GUI ESP Players with Line + Name
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- สร้าง ScreenGui
+local gui = Instance.new("ScreenGui")
+gui.Name = "PlayerESP"
+gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+-- ฟังก์ชันสร้าง ESP ให้แต่ละผู้เล่น
+local function createESP(player)
+	if player == LocalPlayer then return end
+	
+	local Billboard = Instance.new("BillboardGui")
+	Billboard.Name = "NameTag"
+	Billboard.Size = UDim2.new(0,200,0,50)
+	Billboard.AlwaysOnTop = true
+	Billboard.StudsOffset = Vector3.new(0,3,0)
+	
+	local NameLabel = Instance.new("TextLabel")
+	NameLabel.Size = UDim2.new(1,0,1,0)
+	NameLabel.BackgroundTransparency = 1
+	NameLabel.TextColor3 = Color3.fromRGB(255, 100, 255) -- สีชมพูเรืองแสง
+	NameLabel.TextStrokeTransparency = 0
+	NameLabel.Font = Enum.Font.GothamBold
+	NameLabel.TextScaled = true
+	NameLabel.Text = player.Name
+	NameLabel.Parent = Billboard
+	
+	local line = Drawing.new("Line") -- เส้นเชื่อมระหว่างเรากับผู้เล่น
+	line.Color = Color3.fromRGB(255, 0, 255)
+	line.Thickness = 1.5
+	line.Transparency = 1
+	
+	local function update()
+		local char = player.Character
+		local myChar = LocalPlayer.Character
+		if not (char and myChar and char:FindFirstChild("HumanoidRootPart") and myChar:FindFirstChild("HumanoidRootPart")) then
+			line.Visible = false
+			return
+		end
+		local root = char.HumanoidRootPart
+		Billboard.Adornee = root
+		
+		-- คำนวณเส้นจากหน้าจอ
+		local myPos, onScreen1 = workspace.CurrentCamera:WorldToViewportPoint(myChar.HumanoidRootPart.Position)
+		local pos, onScreen2 = workspace.CurrentCamera:WorldToViewportPoint(root.Position)
+		
+		if onScreen1 and onScreen2 then
+			line.From = Vector2.new(myPos.X, myPos.Y)
+			line.To = Vector2.new(pos.X, pos.Y)
+			line.Visible = true
+		else
+			line.Visible = false
+		end
+	end
+	
+	RunService.RenderStepped:Connect(update)
+	
+	player.CharacterAdded:Connect(function(char)
+		wait(1)
+		Billboard.Parent = char:WaitForChild("Head")
+	end)
+	
+	if player.Character and player.Character:FindFirstChild("Head") then
+		Billboard.Parent = player.Character.Head
+	end
+end
+
+-- สร้าง ESP ให้ทุกคนที่อยู่ในเซิร์ฟ
+for _, p in pairs(Players:GetPlayers()) do
+	createESP(p)
+end
+
+-- เมื่อมีคนใหม่เข้า
+Players.PlayerAdded:Connect(createESP)
