@@ -1,0 +1,31 @@
+-- ServerScriptService/AdminTagger.lua
+local Players = game:GetService("Players")
+
+-- กำหนด username ที่เป็นแอดมิน (ชื่อ Roblox)
+local ADMIN_USERNAMES = {
+    "YourUsernameHere", -- เปลี่ยนเป็นชื่อของคุณ
+    "AnotherAdmin"
+}
+
+local adminSet = {}
+for _, name in ipairs(ADMIN_USERNAMES) do
+    adminSet[name:lower()] = true
+end
+
+local function tagPlayer(player)
+    if adminSet[player.Name:lower()] then
+        -- เก็บค่าเป็น Attribute เพื่อให้ client อ่านได้ (ปลอดภัยกว่าเก็บพวก Permissions สำคัญ)
+        player:SetAttribute("IsAdmin", true)
+    else
+        player:SetAttribute("IsAdmin", false)
+    end
+end
+
+Players.PlayerAdded:Connect(function(player)
+    tagPlayer(player)
+end)
+
+-- กำหนดให้คนที่อยู่ก่อนหน้า (กรณีสคริปต์รีสตาร์ท)
+for _, p in pairs(Players:GetPlayers()) do
+    tagPlayer(p)
+end
