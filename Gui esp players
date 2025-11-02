@@ -1,0 +1,157 @@
+-- LocalScript (วางที่ StarterPlayer > StarterPlayerScripts)
+-- ฟีเจอร์: สร้าง BillboardGui ให้ผู้เล่นทั้งหมด แสดงชื่อ + ระยะห่าง
+-- ปุ่ม V = toggle เปิด/ปิด
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+-- การตั้งค่า (แก้ได้)
+local TEXT_SIZE = 14
+local MAX_DISPLAY_DISTANCE = 200 -- เมตร (หน่วย Roblox studs)
+local TOGGLE_KEY = Enum.KeyCode.V
+local NAME_COLOR = Color3.fromRGB(255, 128, 220) -- ชมพูอมม่วง
+local OUTLINE_COLOR = Color3.new(0,0,0)
+
+-- เก็บ BillboardGui ที่สร้าง
+local guis = {}
+
+-- ฟังก์ชันสร้าง BillboardGui ให้ Character
+local function createBillboardForCharacter(player)
+    if not player or not player.Character then return end
+    local char = player.Character
+    local head = char:FindFirstChild("Head") or char:FindFirstChildWhichIsA("BasePart")
+    if not head then return end
+
+    -- ถ้ามีอยู่แล้ว ให้รีเทิร์น
+    if guis[player] and guis[player]:FindFirstChild("ESPBillboard") then return end
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ESPBillboard"
+    billboard.Adornee = head
+    billboard.AlwaysOnTop = true
+    billboard.Size = UDim2.new(0, 150, 0, 40)
+    billboard.MaxDistance = MAX_DISPLAY_DISTANCE
+    billboard.StudsOffset = Vector3.new(0, 1.8, 0)
+
+    local frame = Instance.new("Frame", billboard)
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    frame.BackgroundTransparency = 1
+
+    local nameLabel = Instance.new("TextLabel", frame)
+    nameLabel.Name = "NameLabel"
+    nameLabel.Size = UDim2.new(1, 0, 0.6, 0)
+    nameLabel.Position = UDim2.new(0, 0, 0, 0)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.TextScaled = false
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.TextSize = TEXT_SIZE
+    nameLabel.Text = player.Name
+    nameLabel.TextColor3 = NAME_COLOR
+    nameLabel.TextStrokeColor3 = OUTLINE_COLOR
+    nameLabel.TextStrokeTransparency = 0.4
+    nameLabel.TextYAlignment = Enum.TextYAlignment.Bottom
+
+    local distLabel = Instance.new("TextLabel", frame)
+    distLabel.Name = "DistLabel"
+    distLabel.Size = UDim2.new(1, 0, 0.4, 0)
+    distLabel.Position = UDim2.new(0, 0, 0.6, 0)
+    distLabel.BackgroundTransparency = 1
+    distLabel.TextScaled = false
+    distLabel.Font = Enum.Font.Gotham
+    distLabel.TextSize = TEXT_SIZE - 2
+    distLabel.Text = ""
+    distLabel.TextColor3 = Color3.fromRGB(255,255,255)
+    distLabel.TextStrokeColor3 = OUTLINE_COLOR
+    distLabel.TextStrokeTransparency = 0.6
+    distLabel.TextYAlignment = Enum.TextYAlignment.Top
+
+    -- เก็บ reference
+    guis[player] = billboard
+    billboard.Parent = game.CoreGui -- or player:WaitForChild("PlayerGui") ; CoreGui ต้องระวังในบางกรณี
+    -- NOTE: ถ้าอยากให้ GUI แยก per-player ให้ใช้ player:WaitForChild("PlayerGui") แทน CoreGui
+end
+
+local function removeBillboardForPlayer(player)
+    local g = guis[player]
+    if g and g.Parent then
+        g:Destroy()
+    end
+    guis[player] = nil
+end
+
+-- เมื่อมีผู้เล่นเข้าร่วม/ออกหรือตัวละครเกิดใหม่
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        -- รอ head โผล่มา
+        wait(0.1)
+        createBillboardForCharacter(player)
+    end)
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    removeBillboardForPlayer(player)
+end)
+
+-- สร้างสำหรับผู้เล่นที่มีอยู่แล้ว (ตอนเริ่ม)
+for _,player in pairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        if player.Character then
+            createBillboardForCharacter(player)
+        end
+        player.CharacterAdded:Connect(function()
+            wait(0.1)
+            createBillboardForCharacter(player)
+        end)
+    end
+end
+
+-- อัปเดตระยะห่างแบบเรียลไทม์ และควบคุมการมองเห็น
+local enabled = true
+local function toggle()
+    enabled = not enabled
+    for p, gui in pairs(guis) do
+        if gui and gui.Parent then
+            gui.Enabled = enabled
+        end
+    end
+end
+
+-- ปุ่มคีย์บอร์ดสำหรับ toggle
+local UserInputService = game:GetService("UserInputService")
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == TOGGLE_KEY then
+        toggle()
+    end
+end)
+
+-- อัปเดตระยะทุกเฟรม (เบา ๆ)
+RunService.RenderStepped:Connect(function()
+    if not LocalPlayer.Character or not LocalPlayer.Character.PrimaryPart then return end
+    local camPos = workspace.CurrentCamera.CFrame.Position
+
+    for player, gui in pairs(guis) do
+        if player and player.Character and gui and gui:FindFirstChild("NameLabel") then
+            local head = player.Character:FindFirstChild("Head") or player.Character:FindFirstChildWhichIsA("BasePart")
+            if head then
+                local dist = (head.Position - camPos).Magnitude
+                local distLabel = gui:FindFirstChildWhichIsA("TextLabel", true) -- ไม่ใช้; เราจึงเข้าถึงตามชื่อ:
+                local nameLabel = gui:FindFirstChild("NameLabel")
+                local dLabel = gui:FindFirstChild("DistLabel")
+                if dLabel then
+                    if dist <= MAX_DISPLAY_DISTANCE then
+                        dLabel.Text = string.format("%.1f studs", dist)
+                        gui.Enabled = enabled
+                    else
+                        -- ซ่อนถ้าไกลเกิน
+                        gui.Enabled = false
+                    end
+                end
+            else
+                -- ถ้าตัวละครหาย ให้ลบ gui
+                removeBillboardForPlayer(player)
+            end
+        end
+    end
+end)
