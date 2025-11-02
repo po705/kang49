@@ -1,0 +1,34 @@
+-- Script ใน ServerScriptService
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- RemoteEvents
+local KickEvent = Instance.new("RemoteEvent", ReplicatedStorage)
+KickEvent.Name = "KickEvent"
+local SpeedEvent = Instance.new("RemoteEvent", ReplicatedStorage)
+SpeedEvent.Name = "SpeedEvent"
+local TPEvent = Instance.new("RemoteEvent", ReplicatedStorage)
+TPEvent.Name = "TPEvent"
+
+-- Kick
+KickEvent.OnServerEvent:Connect(function(player, targetName)
+	local target = game.Players:FindFirstChild(targetName)
+	if target then
+		target:Kick("คุณถูกเตะออกโดยแอดมิน: " .. player.Name)
+	end
+end)
+
+-- Speed
+SpeedEvent.OnServerEvent:Connect(function(player, targetName)
+	local target = game.Players:FindFirstChild(targetName)
+	if target and target.Character and target.Character:FindFirstChild("Humanoid") then
+		target.Character.Humanoid.WalkSpeed = 100
+	end
+end)
+
+-- Teleport (TP ตัวเองไปหาอีกคน)
+TPEvent.OnServerEvent:Connect(function(player, targetName)
+	local target = game.Players:FindFirstChild(targetName)
+	if target and target.Character and player.Character then
+		player.Character:MoveTo(target.Character:GetPrimaryPartCFrame().p)
+	end
+end)
