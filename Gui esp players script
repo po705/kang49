@@ -1,0 +1,157 @@
+-- PathLines.lua (LocalScript) -> ใส่ใน StarterPlayerScripts
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- ============ ปรับแต่ง ============
+local TEAM_ONLY = true         -- true = แสดงเฉพาะเพื่อนในทีมเดียวกัน, false = แสดงทุกคน
+local MAX_DISTANCE = 2000      -- ระยะสูงสุด (studs) ที่จะวาดเส้นถึง (ปรับได้)
+local THICKNESS = 4            -- ความหนาของเส้น (px)
+local LINE_COLOR = Color3.fromRGB(255, 105, 180) -- สีเส้น (ปรับได้)
+local SHOW_ON_SCREEN_ONLY = true -- ถ้า true จะไม่วาดเส้นเมื่อผู้เล่นอยู่นอกหน้าจอ
+local TOGGLE_KEY = Enum.KeyCode.F -- กดเพื่อเปิด/ปิดการแสดงผล
+-- ==================================
+
+-- สร้าง ScreenGui และ container
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "PathLinesGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local linesFolder = Instance.new("Folder", screenGui)
+linesFolder.Name = "PathLinePool"
+
+local enabled = true
+
+-- ฟังก์ชันสร้าง UI line (frame) สำหรับการวาด
+local function createLine()
+    local frame = Instance.new("Frame")
+    frame.Name = "PathLine"
+    frame.AnchorPoint = Vector2.new(0, 0.5) -- เริ่มจากจุดซ้ายกลาง
+    frame.BackgroundColor3 = LINE_COLOR
+    frame.BorderSizePixel = 0
+    frame.Size = UDim2.new(0, 0, 0, THICKNESS)
+    frame.Visible = false
+    frame.Parent = linesFolder
+
+    -- เพิ่มเอฟเฟกต์ขอบบาง ๆ (ทางเลือก)
+    local stroke = Instance.new("UIStroke", frame)
+    stroke.Thickness = 0.6
+    stroke.Transparency = 0.4
+
+    return frame
+end
+
+-- reuse pool: key = player, value = frame
+local linePool = {}
+
+-- คืนค่า HumanoidRootPart ของผู้เล่น (ถ้ามี)
+local function getHRP(player)
+    local char = player.Character
+    if char then
+        return char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("LowerTorso") or char:FindFirstChild("Torso")
+    end
+    return nil
+end
+
+-- ฟังก์ชันวาดเส้นจาก screenA ไป screenB โดยใช้ frame
+local function drawLine(frame, screenA, screenB)
+    local dx = screenB.X - screenA.X
+    local dy = screenB.Y - screenA.Y
+    local dist = math.sqrt(dx*dx + dy*dy)
+
+    frame.Size = UDim2.new(0, math.max(1, math.floor(dist)), 0, THICKNESS)
+    frame.Rotation = math.deg(math.atan2(dy, dx))
+    frame.Position = UDim2.new(0, screenA.X, 0, screenA.Y)
+    frame.Visible = true
+end
+
+-- ซ่อนไว้
+local function hideLine(frame)
+    if frame then
+        frame.Visible = false
+    end
+end
+
+-- toggle key
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == TOGGLE_KEY then
+        enabled = not enabled
+        if not enabled then
+            -- ซ่อนทั้งหมด
+            for _, f in pairs(linePool) do
+                if f and f.Parent then
+                    f.Visible = false
+                end
+            end
+        end
+    end
+end)
+
+-- อัพเดตทุกเฟรม
+RunService.RenderStepped:Connect(function()
+    if not enabled then return end
+    if not LocalPlayer.Character then return end
+
+    local myHRP = getHRP(LocalPlayer)
+    if not myHRP then return end
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            -- team check (ถ้าเปิด)
+            if not TEAM_ONLY or (player.Team == LocalPlayer.Team) then
+                local hrp = getHRP(player)
+                if hrp then
+                    local worldPos = hrp.Position
+                    local toTarget = (worldPos - myHRP.Position).Magnitude
+
+                    if toTarget <= MAX_DISTANCE then
+                        local screenPosMy, onScreenMy = Camera:WorldToViewportPoint(myHRP.Position)
+                        local screenPosTarget, onScreenTarget = Camera:WorldToViewportPoint(worldPos)
+
+                        -- ถ้าตั้ง SHOW_ON_SCREEN_ONLY แล้ว target ไม่อยู่บนหน้าจอ จะไม่แสดง
+                        if (not SHOW_ON_SCREEN_ONLY) or (onScreenTarget and onScreenMy and screenPosTarget.Z > 0 and screenPosMy.Z > 0) then
+                            local sx1, sy1 = screenPosMy.X, screenPosMy.Y
+                            local sx2, sy2 = screenPosTarget.X, screenPosTarget.Y
+
+                            -- สร้าง frame ถ้ายังไม่มี
+                            if not linePool[player] or not linePool[player].Parent then
+                                linePool[player] = createLine()
+                            end
+
+                            drawLine(linePool[player], Vector2.new(sx1, sy1), Vector2.new(sx2, sy2))
+                        else
+                            -- ซ่อนเส้นสำหรับ player นี้
+                            if linePool[player] then hideLine(linePool[player]) end
+                        end
+                    else
+                        -- เกินระยะ -> ซ่อน
+                        if linePool[player] then hideLine(linePool[player]) end
+                    end
+                else
+                    -- ไม่มี character -> ซ่อน
+                    if linePool[player] then hideLine(linePool[player]) end
+                end
+            else
+                -- ไม่ใช่ทีม -> ซ่อน
+                if linePool[player] then hideLine(linePool[player]) end
+            end
+        end
+    end
+end)
+
+-- clean up เมื่อผู้เล่นเข้าหรือออก
+Players.PlayerRemoving:Connect(function(p)
+    if linePool[p] then
+        linePool[p]:Destroy()
+        linePool[p] = nil
+    end
+end)
+Players.PlayerAdded:Connect(function(p)
+    -- ไม่มี action จำเป็นพิเศษตอนเพิ่ม แต่ pool จะสร้างตอนใช้งานครั้งแรก
+end)
+
+print("PathLines loaded (toggle with key:", TOGGLE_KEY.Name, ")")
