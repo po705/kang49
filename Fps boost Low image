@@ -1,0 +1,45 @@
+-- ⚙️ สคริปต์ลดเอฟเฟกต์ & ลดปิง
+-- แนะนำให้ใส่ใน StarterPlayer > StarterPlayerScripts
+
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+local player = Players.LocalPlayer
+
+-- ปิดเอฟเฟกต์แสง
+Lighting.GlobalShadows = false
+Lighting.FogEnd = 100000
+Lighting.Brightness = 1
+Lighting.EnvironmentDiffuseScale = 0
+Lighting.EnvironmentSpecularScale = 0
+
+-- ลบ particle, light, และ decal ที่กินเครื่อง
+for _, v in pairs(workspace:GetDescendants()) do
+	if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") then
+		v.Enabled = false
+	elseif v:IsA("PointLight") or v:IsA("SpotLight") or v:IsA("SurfaceLight") then
+		v.Enabled = false
+	elseif v:IsA("Decal") or v:IsA("Texture") then
+		v.Transparency = 1
+	end
+end
+
+-- ปิดเอฟเฟกต์หลังจากเข้าเกม
+workspace.DescendantAdded:Connect(function(obj)
+	if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") or obj:IsA("Fire") then
+		obj.Enabled = false
+	elseif obj:IsA("PointLight") or obj:IsA("SpotLight") or obj:IsA("SurfaceLight") then
+		obj.Enabled = false
+	elseif obj:IsA("Decal") or obj:IsA("Texture") then
+		obj.Transparency = 1
+	end
+end)
+
+-- ลดคุณภาพกราฟิกให้สุด
+settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+
+-- แจ้งเตือน
+game.StarterGui:SetCore("SendNotification", {
+	Title = "✅ ลดแลคสำเร็จ";
+	Text = "ระบบปิดเอฟเฟกต์และลดกราฟิกเพื่อประหยัด Ping แล้ว!";
+	Duration = 5;
+})
