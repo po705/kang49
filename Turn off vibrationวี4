@@ -1,0 +1,36 @@
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+local boundName = "NoShakeCamera"
+
+local OFFSET = Vector3.new(0, 4, 8) -- ระยะห่างจากตัว (หลัง-บน)
+local LOOK_AT_OFFSET = Vector3.new(0, 2, 0)
+
+local function onCharacter(char)
+	local hrp = char:WaitForChild("HumanoidRootPart", 5)
+	if not hrp then return end
+
+	pcall(function()
+		RunService:UnbindFromRenderStep(boundName)
+	end)
+
+	RunService:BindToRenderStep(boundName, Enum.RenderPriority.Camera.Value, function()
+		if not hrp.Parent then
+			RunService:UnbindFromRenderStep(boundName)
+			return
+		end
+
+		camera.CameraType = Enum.CameraType.Scriptable
+
+		-- ให้กล้องหมุนตาม HRP จริง ๆ
+		local hrpCFrame = hrp.CFrame
+		local camPos = hrpCFrame:PointToWorldSpace(Vector3.new(0, OFFSET.Y, OFFSET.Z))
+		local lookAtPos = hrp.Position + LOOK_AT_OFFSET
+		camera.CFrame = CFrame.new(camPos, lookAtPos)
+	end)
+end
+
+player.CharacterAdded:Connect(onCharacter)
+if player.Character then onCharacter(player.Character) end
