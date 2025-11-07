@@ -1,0 +1,56 @@
+-- NoShakeCamera.lua  (LocalScript -> StarterPlayerScripts)
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+-- ปรับตำแหน่งกล้องจาก HumanoidRootPart ตามชอบ (ตัวอย่างเป็น third-person)
+local OFFSET = Vector3.new(0, 3, 8)  -- x,y,z (ขยับกล้องถอย/ขึ้นลง)
+local LOOK_AT_OFFSET = Vector3.new(0, 2, 0) -- จุดที่กล้องมอง (จากตำแหน่งตัว)
+
+local boundName = "NoShakeCameraBind"
+
+local function onCharacter(char)
+    local hrp = char:WaitForChild("HumanoidRootPart", 5)
+    if not hrp then return end
+
+    -- ถ้ามีการ Bind เดิม ให้ยกเลิกก่อน
+    pcall(function() RunService:UnbindFromRenderStep(boundName) end)
+
+    RunService:BindToRenderStep(boundName, Enum.RenderPriority.Camera.Value, function()
+        if not hrp.Parent then
+            -- ถ้าตัวละครหาย ให้ unbind
+            pcall(function() RunService:UnbindFromRenderStep(boundName) end)
+            return
+        end
+
+        -- เปลี่ยนเป็น Scriptable แล้วตั้งตำแหน่งกล้องแบบนิ่งตาม HRP
+        camera.CameraType = Enum.CameraType.Scriptable
+
+        local targetPos = hrp.Position + hrp.CFrame:VectorToWorldSpace(OFFSET)
+        local lookAtPos = hrp.Position + LOOK_AT_OFFSET
+        camera.CFrame = CFrame.new(targetPos, lookAtPos)
+    end)
+end
+
+-- เมื่อมีตัวละครใหม่
+player.CharacterAdded:Connect(onCharacter)
+-- ถ้าตัวละครมีอยู่แล้วตอนสคริปเริ่ม
+if player.Character then
+    onCharacter(player.Character)
+end
+
+-- ฟังก์ชันเปิด/ปิด แบบง่าย
+local function disableNoShake()
+    pcall(function() RunService:UnbindFromRenderStep(boundName) end)
+    camera.CameraType = Enum.CameraType.Custom
+end
+
+local function enableNoShake()
+    if player.Character then onCharacter(player.Character) end
+end
+
+-- (ถ้าต้องการให้สั่งจากคอนโซล) ตัวอย่าง:
+-- enableNoShake()
+-- disableNoShake()
