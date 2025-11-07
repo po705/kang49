@@ -1,0 +1,84 @@
+-- 🧱 Clay Style FPS Boost + Anti Shake by CHAIYOKC
+
+local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+
+------------------------------------------------
+-- 🟢 1. FPS BOOST
+------------------------------------------------
+Lighting.GlobalShadows = false
+Lighting.Brightness = 2
+Lighting.FogEnd = 100000
+Lighting.Technology = Enum.Technology.Compatibility
+
+-- ปิด Post Effects เดิม
+for _, v in pairs(Lighting:GetChildren()) do
+	if v:IsA("PostEffect") then
+		v.Enabled = false
+	end
+end
+
+-- ลบ Texture / Decal
+for _, obj in pairs(workspace:GetDescendants()) do
+	if obj:IsA("Decal") or obj:IsA("Texture") then
+		obj:Destroy()
+	end
+end
+
+-- ปรับวัสดุทั้งหมดเป็นดินน้ำมัน
+for _, part in pairs(workspace:GetDescendants()) do
+	if part:IsA("BasePart") then
+		part.Material = Enum.Material.SmoothPlastic
+		part.Reflectance = 0
+	end
+end
+
+------------------------------------------------
+-- 🎨 2. Clay Style Filter (Soft Look)
+------------------------------------------------
+local colorCorrection = Instance.new("ColorCorrectionEffect")
+colorCorrection.Brightness = 0.1
+colorCorrection.Contrast = 0.2
+colorCorrection.Saturation = -0.3
+colorCorrection.TintColor = Color3.fromRGB(255, 230, 210)
+colorCorrection.Parent = Lighting
+
+local blur = Instance.new("BlurEffect")
+blur.Size = 2
+blur.Parent = Lighting
+
+------------------------------------------------
+-- 🚫 3. Anti-Shake System
+------------------------------------------------
+-- 3.1 กล้องไม่สั่น
+local cam = workspace.CurrentCamera
+RunService.RenderStepped:Connect(function()
+	if cam then
+		cam.CFrame = CFrame.new(cam.CFrame.Position, cam.CFrame.Position + cam.CFrame.LookVector)
+	end
+end)
+
+-- 3.2 ป้องกันสั่นตอนตัวละครเดิน วิ่ง กระโดด
+player.CharacterAdded:Connect(function(char)
+	local humanoid = char:WaitForChild("Humanoid", 10)
+	if humanoid then
+		humanoid.CameraOffset = Vector3.new(0, 0, 0)
+		humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+		humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+	end
+end)
+
+-- 3.3 ปิด recoil หรือการสั่นจากสคริปต์อื่น
+RunService.RenderStepped:Connect(function()
+	for _, obj in pairs(workspace:GetDescendants()) do
+		if obj:IsA("Camera") or obj.Name:lower():find("shake") or obj.Name:lower():find("recoil") then
+			if obj:IsA("Script") or obj:IsA("LocalScript") then
+				obj.Disabled = true
+			end
+		end
+	end
+end)
+
+print("✅ Clay FPS Boost + Anti-Shake Enabled | by CHAIYOKC")
