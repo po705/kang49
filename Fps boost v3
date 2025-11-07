@@ -1,0 +1,54 @@
+-- FPS / Ping Boost Script
+-- สคริปต์นี้ใส่ใน StarterPlayer > StarterPlayerScripts
+
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+-- ปิดแสงและเอฟเฟกต์
+Lighting.GlobalShadows = false
+Lighting.Brightness = 1
+Lighting.FogEnd = 1000000
+Lighting.FogStart = 0
+Lighting.ExposureCompensation = 0
+Lighting.EnvironmentDiffuseScale = 0
+Lighting.EnvironmentSpecularScale = 0
+Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+
+-- ปิดการสั่นของกล้อง
+local player = Players.LocalPlayer
+local cam = Workspace.CurrentCamera
+RunService.RenderStepped:Connect(function()
+	if cam then
+		cam.CameraType = Enum.CameraType.Custom
+		cam.CFrame = cam.CFrame -- รีเซ็ตทุกเฟรม ป้องกันสั่น
+	end
+end)
+
+-- ลบพาร์ติเคิล/เอฟเฟกต์ในเกม
+for _, obj in ipairs(Workspace:GetDescendants()) do
+	if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") or obj:IsA("Fire") then
+		obj.Enabled = false
+	end
+end
+
+-- ปิด Terrain Deco เพื่อความลื่น
+if Workspace:FindFirstChildOfClass("Terrain") then
+	Workspace.Terrain.WaterReflectance = 0
+	Workspace.Terrain.WaterTransparency = 1
+	Workspace.Terrain.WaterWaveSize = 0
+	Workspace.Terrain.WaterWaveSpeed = 0
+end
+
+-- ลดปิงด้วยการลดการประมวลผลภาพที่ไม่เห็น
+RunService.Stepped:Connect(function()
+	for _, obj in ipairs(Workspace:GetDescendants()) do
+		if obj:IsA("BasePart") then
+			obj.CastShadow = false
+			obj.Reflectance = 0
+		end
+	end
+end)
+
+print("✅ FPS Boost & Ping Reducer Loaded!")
